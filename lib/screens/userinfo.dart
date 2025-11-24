@@ -60,9 +60,9 @@ class UserInfo extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 children: const [
-                  _GradientInfoTile(label: "Name", value: "Ayumi Fukaishi"),
-                  _GradientInfoTile(label: "Age", value: "20"),
-                  _GradientInfoTile(label: "Email", value: "ayumi@example.com"),
+                  _GradientInfoTile(label: "Name", value: "Rajiemae V. Villa"),
+                  _GradientInfoTile(label: "Age", value: "21"),
+                  _GradientInfoTile(label: "Email", value: "v.rajime.v@example.com"),
                   _GradientInfoTile(label: "Phone", value: "+63 912 345 6789"),
                   _GradientInfoTile(label: "Address", value: "Cebu City, Philippines"),
                   _GradientInfoTile(label: "Blood Type", value: "O+"),

@@ -37,59 +37,67 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  Offset fabPosition = const Offset(320, 600);
+  List<MedicalRecordModel> _filteredRecords = allRecords;
+
+  void _filterRecords(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredRecords = allRecords;
+      } else {
+        _filteredRecords = allRecords.where((record) {
+          final doctorMatch = record.doctor.toLowerCase().contains(query.toLowerCase());
+          final activityMatch = record.activity.toLowerCase().contains(query.toLowerCase());
+          return doctorMatch || activityMatch;
+        }).toList();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
-        child: Stack(
-          children: [
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                const _Header(),
+                const SizedBox(height: 24),
+                Row(
                   children: [
-                    const SizedBox(height: 12),
-                    const _Header(),
-                    const SizedBox(height: 24),
                     ShaderMask(
-                    shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                    blendMode: BlendMode.srcIn,
-                    child: const Text(
-                      "Medical Record",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 255, 255, 255), 
+                      shaderCallback: (bounds) =>
+                          AppColors.primaryGradient.createShader(bounds),
+                      child: const Text(
+                        'Hello, Ayums! ',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(child: _PatientRecordSection(allRecords: allRecords)),
                   ],
                 ),
-              ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Medical Record',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _SearchBar(onSearch: _filterRecords),
+                const SizedBox(height: 16),
+                Expanded(child: _PatientRecordSection(allRecords: _filteredRecords)),
+              ],
             ),
-            Positioned(
-              left: fabPosition.dx,
-              top: fabPosition.dy,
-              child: Draggable(
-                feedback: const Material(color: Colors.transparent, child: FloatingChatIcon()),
-                childWhenDragging: const SizedBox.shrink(),
-                onDragEnd: (details) {
-                  setState(() {
-                    final size = MediaQuery.of(context).size;
-                    double x = details.offset.dx.clamp(0.0, size.width - 72);
-                    double y = details.offset.dy.clamp(0.0, size.height - 72);
-                    fabPosition = Offset(x, y);
-                  });
-                },
-                child: const FloatingChatIcon(),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -106,83 +114,237 @@ class _Header extends StatelessWidget {
       children: [
         Row(
           children: [
-            SizedBox(
-              height: 80,
-              width: 80,
-              child: ShaderMask(
-                shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                blendMode: BlendMode.srcIn,
-                child: SvgPicture.asset(
-                  'assets/ACLC.svg',
-                  fit: BoxFit.contain,
-                  placeholderBuilder: (context) => const Icon(Icons.school, color: Colors.white, size: 48),
+            ShaderMask(
+              shaderCallback: (Rect bounds) =>
+                  AppColors.primaryGradient.createShader(bounds),
+              child: SvgPicture.asset(
+                'assets/ACLC.svg',
+                height: 50,
+                width: 50,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ShaderMask(
+              shaderCallback: (bounds) =>
+                  AppColors.primaryGradient.createShader(bounds),
+              child: const Text(
+                'ACLC Clinic',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            ShaderMask(
-              shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-              child: const Text(
-                "Hello, Ayums!",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
-              ),
-            ),
           ],
         ),
-        PopupMenuButton<String>(
-          padding: EdgeInsets.zero,
-          offset: const Offset(0, 40),
-          color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          child: Container(
-            decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.primaryGradient),
-            child: const CircleAvatar(radius: 20, backgroundColor: Colors.transparent, child: Icon(Icons.person, color: Colors.white)),
-          ),
-          itemBuilder: (_) => [
-            _menuItem('account', Icons.person, 'Account', AppColors.black),
-            _menuItem('logout', Icons.logout, 'Logout', AppColors.accentRed),
-          ],
-          onSelected: (value) {
-            if (value == 'account') {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => UserInfo()));
-            } else if (value == 'logout') {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SignIn()));
-            }
-          },
-        ),
+        const _ProfileMenu(),
       ],
     );
   }
+}
 
-  PopupMenuItem<String> _menuItem(String value, IconData icon, String text, Color color) {
+class _ProfileMenu extends StatefulWidget {
+  const _ProfileMenu();
+
+  @override
+  State<_ProfileMenu> createState() => _ProfileMenuState();
+}
+
+class _ProfileMenuState extends State<_ProfileMenu> {
+  bool _isMenuOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 55),
+      elevation: 12,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: AppColors.primaryGradient.colors.first.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      onOpened: () => setState(() => _isMenuOpen = true),
+      onCanceled: () => setState(() => _isMenuOpen = false),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: _isMenuOpen ? AppColors.primaryGradient : null,
+          color: _isMenuOpen ? null : Colors.grey.shade300,
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Icon(
+          Icons.person,
+          color: _isMenuOpen ? Colors.white : Colors.grey.shade600,
+          size: 16,
+        ),
+      ),
+      itemBuilder: (_) => [
+        _menuItem(
+          'account',
+          Icons.account_circle_rounded,
+          'Account',
+          AppColors.primaryGradient.colors.first,
+        ),
+        const PopupMenuDivider(height: 16),
+        _menuItem(
+          'logout',
+          Icons.logout_rounded,
+          'Logout',
+          Colors.red.shade400,
+        ),
+      ],
+      onSelected: (value) {
+        setState(() => _isMenuOpen = false);
+        if (value == 'account') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => UserInfo()));
+        } else if (value == 'logout') {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SignIn()));
+        }
+      },
+    );
+  }
+
+  static PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String text,
+    Color color,
+  ) {
     return PopupMenuItem(
       value: value,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: value == 'account'
+                  ? LinearGradient(
+                      colors: [
+                        color.withOpacity(0.15),
+                        color.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: value == 'logout' ? color.withOpacity(0.1) : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 22, color: color),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class FloatingChatIcon extends StatelessWidget {
-  const FloatingChatIcon({super.key});
+class _SearchBar extends StatefulWidget {
+  final Function(String) onSearch;
+  
+  const _SearchBar({required this.onSearch});
+
+  @override
+  State<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<_SearchBar> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      setState(() {
+        _isFocused = _focusNode.hasFocus;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: AppColors.primaryGradient,
-          boxShadow: const [BoxShadow(color: Color.fromARGB(126, 32, 66, 124), blurRadius: 12, spreadRadius: 2)],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _isFocused
+              ? AppColors.primaryGradient.colors.first
+              : Colors.grey.shade300,
+          width: 2,
         ),
-        child: const Icon(Icons.chat_bubble_outline, size: 28, color: Colors.white),
+        boxShadow: [
+          if (_isFocused)
+            BoxShadow(
+              color: AppColors.primaryGradient.colors.first.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _focusNode,
+        onChanged: widget.onSearch,
+        decoration: InputDecoration(
+          hintText: 'Search by doctor or diagnosis',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 15,
+          ),
+          prefixIcon: ShaderMask(
+            shaderCallback: (bounds) =>
+                AppColors.primaryGradient.createShader(bounds),
+            child: const Icon(
+              Icons.search,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    _searchController.clear();
+                    widget.onSearch('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: 10,
+          ),
+        ),
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 15,
+        ),
       ),
     );
   }
