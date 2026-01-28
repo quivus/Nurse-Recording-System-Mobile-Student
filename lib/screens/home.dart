@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_temp/widgets/app_colors.dart';
-import 'package:flutter_temp/widgets/app_background.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:aclc_clinic/widgets/app_colors.dart';
 import 'userinfo.dart';
 import '../landing/signin.dart';
 import 'medical_record.dart';
@@ -9,413 +12,517 @@ import 'medical_record.dart';
 class MedicalRecordModel {
   final String date;
   final String activity;
-  final String scheduledTime;
   final String doctor;
-
   const MedicalRecordModel({
     required this.date,
     required this.activity,
-    required this.scheduledTime,
     required this.doctor,
   });
 }
 
 const List<MedicalRecordModel> allRecords = [
-  MedicalRecordModel(date: 'January 4th, 2018', activity: 'Dental hygiene', scheduledTime: '9:00am', doctor: 'Nurse Chavez'),
-  MedicalRecordModel(date: 'December 17th, 2017', activity: 'Sore throat checkup', scheduledTime: '10:30am', doctor: 'Nurse Rai'),
-  MedicalRecordModel(date: 'August 21th, 2017', activity: 'Circulatory problems', scheduledTime: '4:45pm', doctor: 'Nurse AYumi'),
-  MedicalRecordModel(date: 'July 10th, 2017', activity: 'Blood pressure check', scheduledTime: '2:00pm', doctor: 'Nurse Jan'),
-  MedicalRecordModel(date: 'July 10th, 2017', activity: 'Blood pressure check', scheduledTime: '2:00pm', doctor: 'Nurse Inot'),
-  MedicalRecordModel(date: 'July 10th, 2017', activity: 'Blood pressure check', scheduledTime: '2:00pm', doctor: 'Nurse Gab'),
+  MedicalRecordModel(
+    date: 'Jan 4, 2018',
+    activity: 'Dental hygiene',
+    doctor: 'Nurse Chavez',
+  ),
+  MedicalRecordModel(
+    date: 'Dec 17, 2017',
+    activity: 'Sore throat checkup',
+    doctor: 'Nurse Rai',
+  ),
+  MedicalRecordModel(
+    date: 'Aug 21, 2017',
+    activity: 'Circulatory problems',
+    doctor: 'Nurse AYumi',
+  ),
+  MedicalRecordModel(
+    date: 'July 10, 2017',
+    activity: 'Blood pressure check',
+    doctor: 'Nurse Jan',
+  ),
 ];
 
 class Home extends StatefulWidget {
   const Home({super.key});
-
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final TextEditingController _searchController = TextEditingController();
   List<MedicalRecordModel> _filteredRecords = allRecords;
+  bool _isEmergencyActive = false;
+  Timer? _emergencyTimer;
+  File? _profileImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? imagePath = prefs.getString('profile_image_path');
+    if (imagePath != null && imagePath.isNotEmpty) {
+      final file = File(imagePath);
+      if (await file.exists()) setState(() => _profileImage = file);
+    }
+  }
 
   void _filterRecords(String query) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredRecords = allRecords;
-      } else {
-        _filteredRecords = allRecords.where((record) {
-          final doctorMatch = record.doctor.toLowerCase().contains(query.toLowerCase());
-          final activityMatch = record.activity.toLowerCase().contains(query.toLowerCase());
-          return doctorMatch || activityMatch;
-        }).toList();
-      }
+      _filteredRecords = allRecords.where((record) {
+        return record.doctor.toLowerCase().contains(query.toLowerCase()) ||
+            record.activity.toLowerCase().contains(query.toLowerCase());
+      }).toList();
+    });
+  }
+
+  void _triggerEmergency() {
+    HapticFeedback.heavyImpact();
+    setState(() => _isEmergencyActive = true);
+    _emergencyTimer?.cancel();
+    _emergencyTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _isEmergencyActive = false);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF8F9FE),
+      drawer: _buildSidebar(context),
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Container(
+            height: MediaQuery.of(context).size.height * 0.38,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(60),
+              ),
+            ),
+          ),
+
+          SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 12),
-                const _Header(),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (bounds) =>
-                          AppColors.primaryGradient.createShader(bounds),
-                      child: const Text(
-                        'Hello, Ayums! ',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
+                _CustomAppBar(scaffoldKey: _scaffoldKey),
+                _WelcomeHeader(profileImage: _profileImage),
+                const SizedBox(height: 25),
+                _EmergencyActionCard(onLongPress: _triggerEmergency),
+                const SizedBox(height: 30),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Medical Records',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0D1B3E),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Medical Record',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 14),
-                _SearchBar(onSearch: _filterRecords),
-                const SizedBox(height: 16),
-                Expanded(child: _PatientRecordSection(allRecords: _filteredRecords)),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: _SearchBar(
+                    controller: _searchController,
+                    onChanged: _filterRecords,
+                  ),
+                ),
+
+                Expanded(child: _PatientRecordList(records: _filteredRecords)),
               ],
             ),
           ),
-        ),
+
+          if (_isEmergencyActive)
+            _EmergencyOverlay(
+              onCancel: () {
+                _emergencyTimer?.cancel();
+                setState(() => _isEmergencyActive = false);
+              },
+            ),
+        ],
       ),
     );
   }
-}
 
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            ShaderMask(
-              shaderCallback: (Rect bounds) =>
-                  AppColors.primaryGradient.createShader(bounds),
-              child: SvgPicture.asset(
-                'assets/ACLC.svg',
-                height: 50,
-                width: 50,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 8),
-            ShaderMask(
-              shaderCallback: (bounds) =>
-                  AppColors.primaryGradient.createShader(bounds),
-              child: const Text(
-                'ACLC Clinic',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+  Widget _buildSidebar(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.only(top: 80, bottom: 40),
+            child: Column(
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      AppColors.primaryGradient.createShader(bounds),
+                  child: SvgPicture.asset(
+                    'assets/ACLC.svg',
+                    height: 90,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 15),
+                const Text(
+                  'ACLC CLINIC',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    color: Color(0xFF0D1B3E),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        const _ProfileMenu(),
-      ],
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline_rounded),
+            title: const Text(
+              'Account',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UserInfo()),
+            ).then((_) => _loadProfileImage()),
+          ),
+          const Spacer(),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: Colors.red),
+            title: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            onTap: () => Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const SignIn()),
+              (route) => false,
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
     );
   }
 }
 
-class _ProfileMenu extends StatefulWidget {
-  const _ProfileMenu();
-
-  @override
-  State<_ProfileMenu> createState() => _ProfileMenuState();
-}
-
-class _ProfileMenuState extends State<_ProfileMenu> {
-  bool _isMenuOpen = false;
+class _WelcomeHeader extends StatelessWidget {
+  final File? profileImage;
+  const _WelcomeHeader({this.profileImage});
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      padding: EdgeInsets.zero,
-      offset: const Offset(0, 55),
-      elevation: 12,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: AppColors.primaryGradient.colors.first.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      onOpened: () => setState(() => _isMenuOpen = true),
-      onCanceled: () => setState(() => _isMenuOpen = false),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: _isMenuOpen ? AppColors.primaryGradient : null,
-          color: _isMenuOpen ? null : Colors.grey.shade300,
-          shape: BoxShape.circle,
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Icon(
-          Icons.person,
-          color: _isMenuOpen ? Colors.white : Colors.grey.shade600,
-          size: 16,
-        ),
-      ),
-      itemBuilder: (_) => [
-        _menuItem(
-          'account',
-          Icons.account_circle_rounded,
-          'Account',
-          AppColors.primaryGradient.colors.first,
-        ),
-        const PopupMenuDivider(height: 16),
-        _menuItem(
-          'logout',
-          Icons.logout_rounded,
-          'Logout',
-          Colors.red.shade400,
-        ),
-      ],
-      onSelected: (value) {
-        setState(() => _isMenuOpen = false);
-        if (value == 'account') {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => UserInfo()));
-        } else if (value == 'logout') {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SignIn()));
-        }
-      },
-    );
-  }
-
-  static PopupMenuItem<String> _menuItem(
-    String value,
-    IconData icon,
-    String text,
-    Color color,
-  ) {
-    return PopupMenuItem(
-      value: value,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: value == 'account'
-                  ? LinearGradient(
-                      colors: [
-                        color.withOpacity(0.15),
-                        color.withOpacity(0.05),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              color: value == 'logout' ? color.withOpacity(0.1) : null,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 22, color: color),
-          ),
-          const SizedBox(width: 14),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchBar extends StatefulWidget {
-  final Function(String) onSearch;
-  
-  const _SearchBar({required this.onSearch});
-
-  @override
-  State<_SearchBar> createState() => _SearchBarState();
-}
-
-class _SearchBarState extends State<_SearchBar> {
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(() {
-      setState(() {
-        _isFocused = _focusNode.hasFocus;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _isFocused
-              ? AppColors.primaryGradient.colors.first
-              : Colors.grey.shade300,
-          width: 2,
-        ),
-        boxShadow: [
-          if (_isFocused)
-            BoxShadow(
-              color: AppColors.primaryGradient.colors.first.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        focusNode: _focusNode,
-        onChanged: widget.onSearch,
-        decoration: InputDecoration(
-          hintText: 'Search by doctor or diagnosis',
-          hintStyle: TextStyle(
-            color: Colors.grey.shade400,
-            fontSize: 15,
-          ),
-          prefixIcon: ShaderMask(
-            shaderCallback: (bounds) =>
-                AppColors.primaryGradient.createShader(bounds),
-            child: const Icon(
-              Icons.search,
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
               color: Colors.white,
-              size: 28,
+              shape: BoxShape.circle,
+            ),
+            child: CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.blue.shade50,
+              backgroundImage: profileImage != null
+                  ? FileImage(profileImage!)
+                  : null,
+              child: profileImage == null
+                  ? const Icon(Icons.person, color: Colors.blue)
+                  : null,
             ),
           ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.grey),
-                  onPressed: () {
-                    _searchController.clear();
-                    widget.onSearch('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 14,
-            horizontal: 10,
+          const SizedBox(width: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hello There,',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              ),
+              const Text(
+                'Rajiemae!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-        ),
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 15,
-        ),
+        ],
       ),
     );
   }
 }
 
-class _PatientRecordSection extends StatelessWidget {
-  final List<MedicalRecordModel> allRecords;
-  const _PatientRecordSection({required this.allRecords});
+class _PatientRecordList extends StatelessWidget {
+  final List<MedicalRecordModel> records;
+  const _PatientRecordList({required this.records});
 
   @override
   Widget build(BuildContext context) {
+    if (records.isEmpty) {
+      return const Center(
+        child: Text("No records found", style: TextStyle(color: Colors.grey)),
+      );
+    }
     return ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: allRecords.length,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      // No shrinkWrap here so it scrolls efficiently
+      itemCount: records.length,
       itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: _PatientRecordTile(record: allRecords[index]),
+        final r = records[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: ListTile(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MedicalRecord()),
+            ),
+            contentPadding: const EdgeInsets.all(12),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F4FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const GradientIcon(Icons.assignment_outlined, size: 26),
+            ),
+            title: Text(
+              r.activity,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0D1B3E),
+              ),
+            ),
+            subtitle: Text(
+              '${r.date} • ${r.doctor}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            trailing: const GradientIcon(Icons.chevron_right_rounded),
+          ),
         );
       },
     );
   }
 }
 
-class _PatientRecordTile extends StatelessWidget {
-  final MedicalRecordModel record;
-  const _PatientRecordTile({required this.record});
-
+class GradientIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  const GradientIcon(this.icon, {this.size = 28, super.key});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicalRecord()));
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => AppColors.primaryGradient.createShader(
+        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+      ),
+      child: Icon(icon, size: size, color: Colors.white),
+    );
+  }
+}
+
+class _CustomAppBar extends StatelessWidget {
+  final GlobalKey<ScaffoldState> scaffoldKey;
+  const _CustomAppBar({required this.scaffoldKey});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(
+              Icons.notes_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+            onPressed: () => scaffoldKey.currentState?.openDrawer(),
+          ),
+          const Icon(
+            Icons.notifications_active_outlined,
+            color: Colors.white,
+            size: 28,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmergencyActionCard extends StatelessWidget {
+  final VoidCallback onLongPress;
+  const _EmergencyActionCard({required this.onLongPress});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 25,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              const GradientIcon(Icons.touch_app_rounded, size: 55),
+              const SizedBox(height: 15),
+              const Text(
+                'EMERGENCY? HOLD PRESS!',
+                style: TextStyle(
+                  color: Color(0xFF0D1B3E),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Long press to notify the medical team',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              ),
+            ],
+          ),
         ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final Function(String) onChanged;
+  const _SearchBar({required this.controller, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: 'Search records...',
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 15),
+          prefixIcon: const Padding(
+            padding: EdgeInsets.only(left: 15, right: 10),
+            child: GradientIcon(Icons.search_rounded),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmergencyOverlay extends StatelessWidget {
+  final VoidCallback onCancel;
+  const _EmergencyOverlay({required this.onCancel});
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.red.withOpacity(0.96),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    record.date,
-                    style: const TextStyle(color: Colors.white60, fontSize: 14, fontWeight: FontWeight.w400),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    record.activity,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Scheduled: ${record.scheduledTime}',
-                    style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Doctor: ${record.doctor}',
-                    style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500),
-                  ),
-                ],
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 120,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "ALERT SENT!",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 38,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+              child: Text(
+                "Immediate signal sent to clinical staff. Vibration active.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 80),
+            ElevatedButton(
+              onPressed: onCancel,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 18,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(35),
+                ),
+                elevation: 10,
+              ),
+              child: const Text(
+                "CANCEL ALERT",
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ),
           ],
         ),
       ),

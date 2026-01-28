@@ -34,3 +34,5 @@ class InfoTile extends StatelessWidget {
     );
   }
 }
+
+mixin AppTextStyles {}

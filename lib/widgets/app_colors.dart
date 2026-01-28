@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF2933FF), Color(0xFFFF5451)],
     begin: Alignment.topLeft,
