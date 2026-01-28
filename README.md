@@ -1,16 +1,34 @@
-# flutter_temp
+# Nurse-Recording-System-Mobile-Student
 
-A new Flutter project.
+A Flutter-based health management application that allows students to access clinic records,
+manage their profiles, and send emergency alerts to school nurses.
 
-## Getting Started
+## 🚀 Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+* Flutter SDK: `^3.0.0`
+* Dart SDK: `^3.0.0`
+* A mobile emulator or physical device.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Installation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/quivus/Nurse-Recording-System-Mobile-Student.git
+    ```
+
+2.  **Navigate to the project directory**:
+    ```bash
+    cd Nurse-Recording-System-Mobile-Student
+    ```
+
+3.  **Install dependencies**:
+    ```bash
+    flutter pub get
+    ```
+
+4.  **Run the application**:
+    ```bash
+    flutter run
+    ```
